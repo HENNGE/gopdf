@@ -209,22 +209,19 @@ func (t *TTFParser) Parse(filepath string) error {
 	if err != nil {
 		return err
 	}
-	buff := bytes.NewBuffer(data)
-	return t.parse(buff)
+	return t.ParseFontdata(data)
 }
 
 //ParseByReader parse by io.reader
 func (t *TTFParser) ParseByReader(rd io.Reader) error {
-	return t.parse(rd)
-}
-
-func (t *TTFParser) parse(rd io.Reader) error {
-
-	fontdata, err := ioutil.ReadAll(rd)
+	data, err := ioutil.ReadAll(rd)
 	if err != nil {
 		return err
 	}
-	//t.cacheFontData = fontdata
+	return t.ParseFontdata(data)
+}
+
+func (t *TTFParser) ParseFontdata(fontdata []byte) error {
 	fd := bytes.NewReader(fontdata)
 
 	version, err := t.Read(fd, 4)
