@@ -102,6 +102,16 @@ func (s *SubsetFontObj) SetTTFByPath(ttfpath string) error {
 	return nil
 }
 
+func (s *SubsetFontObj) SetTTFData(fd []byte) error {
+	useKerning := s.ttfFontOption.UseKerning
+	s.ttfp.SetUseKerning(useKerning)
+	err := s.ttfp.ParseFontdata(fd)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 //SetTTFByReader set ttf
 func (s *SubsetFontObj) SetTTFByReader(rd io.Reader) error {
 	useKerning := s.ttfFontOption.UseKerning

@@ -823,6 +823,69 @@ func (gp *GoPdf) SetAnchor(name string) {
 	gp.anchors[name] = anchorOption{gp.curr.IndexOfPageObj, y}
 }
 
+func (gp *GoPdf) AddTTFFontdata(family string, fd []byte) error {
+	return gp.AddTTFFontdataWithOption(family, fd, defaultTtfFontOption())
+}
+
+func (gp *GoPdf) AddTTFFontdataWithOption(family string, fd []byte, option TtfOption) error {
+	subsetFont := new(SubsetFontObj)
+	subsetFont.init(func() *GoPdf {
+		return gp
+	})
+	subsetFont.SetTtfFontOption(option)
+	subsetFont.SetFamily(family)
+	err := subsetFont.SetTTFData(fd)
+	if err != nil {
+		return err
+	}
+
+	unicodemap := new(UnicodeMap)
+	unicodemap.init(func() *GoPdf {
+		return gp
+	})
+	unicodemap.setProtection(gp.protection())
+	unicodemap.SetPtrToSubsetFontObj(subsetFont)
+	unicodeindex := gp.addObj(unicodemap)
+
+	pdfdic := new(PdfDictionaryObj)
+	pdfdic.init(func() *GoPdf {
+		return gp
+	})
+	pdfdic.setProtection(gp.protection())
+	pdfdic.SetPtrToSubsetFontObj(subsetFont)
+	pdfdicindex := gp.addObj(pdfdic)
+
+	subfontdesc := new(SubfontDescriptorObj)
+	subfontdesc.init(func() *GoPdf {
+		return gp
+	})
+	subfontdesc.SetPtrToSubsetFontObj(subsetFont)
+	subfontdesc.SetIndexObjPdfDictionary(pdfdicindex)
+	subfontdescindex := gp.addObj(subfontdesc)
+
+	cidfont := new(CIDFontObj)
+	cidfont.init(func() *GoPdf {
+		return gp
+	})
+	cidfont.SetPtrToSubsetFontObj(subsetFont)
+	cidfont.SetIndexObjSubfontDescriptor(subfontdescindex)
+	cidindex := gp.addObj(cidfont)
+
+	subsetFont.SetIndexObjCIDFont(cidindex)
+	subsetFont.SetIndexObjUnicodeMap(unicodeindex)
+	index := gp.addObj(subsetFont) //add หลังสุด
+
+	if gp.indexOfProcSet != -1 {
+		procset := gp.pdfObjs[gp.indexOfProcSet].(*ProcSetObj)
+		if !procset.Relates.IsContainsFamilyAndStyle(family, option.Style&^Underline) {
+			procset.Relates = append(procset.Relates, RelateFont{Family: family, IndexOfObj: index, CountOfFont: gp.curr.CountOfFont, Style: option.Style &^ Underline})
+			subsetFont.CountOfFont = gp.curr.CountOfFont
+			gp.curr.CountOfFont++
+		}
+	}
+	return nil
+}
+
 //AddTTFFontByReader add font file
 func (gp *GoPdf) AddTTFFontByReader(family string, rd io.Reader) error {
 	return gp.AddTTFFontByReaderWithOption(family, rd, defaultTtfFontOption())
